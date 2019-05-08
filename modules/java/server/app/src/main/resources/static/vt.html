@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mapbox Vector Tiles</title>
+    <link rel="stylesheet" href="https://openlayers.org/en/v4.6.5/css/ol.css" type="text/css">
+    <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+    <script src="https://openlayers.org/en/v4.6.5/build/ol.js"></script>
+    <script src="https://openlayers.org/en/v4.6.5/examples/resources/mapbox-streets-v6-style.js"></script>
+    <style>
+      .map {
+        background: #f8f4f0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <script>
+    var labelStyle = new ol.style.Style({
+        geometry: function(feature) {
+          var geometry = feature.getGeometry();
+          if (geometry.getType() == 'MultiPolygon') {
+            // Only render label for the widest polygon of a multipolygon
+            var polygons = geometry.getPolygons();
+            var widest = 0;
+            for (var i = 0, ii = polygons.length; i < ii; ++i) {
+              var polygon = polygons[i];
+              var width = ol.extent.getWidth(polygon.getExtent());
+              if (width > widest) {
+                widest = width;
+                geometry = polygon;
+              }
+            }
+          }
+          return geometry;
+        },
+        text: new ol.style.Text({
+          font: '12px Calibri,sans-serif',
+          overflow: true,
+          fill: new ol.style.Fill({
+            color: '#000'
+          }),
+          stroke: new ol.style.Stroke({
+            color: '#fff',
+            width: 3
+          })
+        })
+      });
+      var countryStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: 'rgba(255, 255, 255, 0.6)'
+        }),
+        stroke: new ol.style.Stroke({
+          color: '#319FD3',
+          width: 1
+        })
+      });
+      var style = [countryStyle, labelStyle];
+
+      var countriesLayer = new ol.layer.Vector({
+        source: new ol.source.Vector({
+          url: 'https://openlayers.org/en/v4.6.5/examples/data/geojson/countries.geojson',
+          format: new ol.format.GeoJSON()
+        }),
+        style: function(feature) {
+          labelStyle.getText().setText(feature.get('name'));
+          return style;
+        },
+        declutter: true
+      });
+      
+      var map = new ol.Map({
+        layers: [countriesLayer
+        	,
+          new ol.layer.VectorTile({
+            declutter: true,
+            source: new ol.source.VectorTile({
+              attributions: '© gabe',
+              format: new ol.format.MVT(),
+              url: 'http://localhost:8181/layers/boundless/osm_usa_shapes_hash/buildings/tiles/{z}/{x}/{-y}.mvt'
+            })
+          })/*
+          ,
+          new ol.layer.VectorTile({
+              declutter: false,
+              source: new ol.source.VectorTile({
+                attributions: '© gabe',
+                format: new ol.format.MVT(),
+                url: 'http://localhost:8181/layers/boundless/osm_usa_shapes_hash/places/tiles/{z}/{x}/{-y}.mvt'
+              })
+            //,
+            //  style: createMapboxStreetsV6Style(ol.style.Style, ol.style.Fill, ol.style.Stroke, ol.style.Icon, ol.style.Text)
+            })*/
+        ],
+        target: 'map',
+        view: new ol.View({
+          center: [0, 0],
+          zoom: 2
+        })
+      });
+    
+    </script>
+  </body>
+</html>

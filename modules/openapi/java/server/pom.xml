@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.geogig.web</groupId>
+    <artifactId>geogig-openapi-java</artifactId>
+    <version>0.2-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>geogig-openapi-java-server</artifactId>
+  <packaging>jar</packaging>
+  <name>GeoGig Open API Swagger generated Java server stubs</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.geogig.web</groupId>
+      <artifactId>geogig-openapi-java-model</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!--Spring dependencies -->
+    <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <sourceDirectory>src/main/java</sourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Automatic-Module-Name>geogig.openapi.server</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-sources/swagger/src/main/java/</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>io.swagger</groupId>
+        <artifactId>swagger-codegen-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${project.basedir}/../../api.yaml</inputSpec>
+
+              <language>spring</language>
+              <library>spring-boot</library>
+              <!-- models are generated in openapi-spec, which this project 
+                depends on -->
+              <generateModels>false</generateModels>
+
+              <!-- but match the model package so imports work -->
+              <modelPackage>org.geogig.web.model</modelPackage>
+
+              <!-- do generate the server stub -->
+              <generateApis>true</generateApis>
+
+              <apiPackage>org.geogig.web.server.api</apiPackage>
+              <generateSupportingFiles>false</generateSupportingFiles>
+
+              <!-- see java -jar swagger-codegen-cli.jar config-help -l spring -->
+              <configOptions>
+                <java8>true</java8>
+                <!-- use tags for creating interface and controller classnames 
+                  (Default: false) -->
+                <useTags>true</useTags>
+                <invokerPackage>org.geogig.web.server.support</invokerPackage>
+                <configPackage>org.geogig.web.server.configuration</configPackage>
+                <dateLibrary>java8</dateLibrary>
+                <delegatePattern>true</delegatePattern>
+                <!-- <useOptional>true</useOptional> <async>false</async> -->
+                <!-- Do not add @javax.annotation.Generated() annotations, 
+                  Java9 expects them to be @javax.annotation.processing.Generated() and it 
+                  causes problems -->
+                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+              </configOptions>
+
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.geogig.web</groupId>
+    <artifactId>parent</artifactId>
+    <version>0.2-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>geogig-openapi</artifactId>
+  <packaging>pom</packaging>
+  <name>GeoGig Open API Swagger Codegen stubs and clients</name>
+  <description>Swagger generated clients and server stubs for different languages, not to be edited manually, but to be depended on by other projects</description>
+
+  <modules>
+    <module>java</module>
+    <module>js</module>
+    <module>python</module>
+  </modules>
+</project>

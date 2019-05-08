@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.geogig.web</groupId>
+    <artifactId>geogig-openapi</artifactId>
+    <version>0.2-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>geogig-openapi-js-client</artifactId>
+  <packaging>jar</packaging>
+  <name>GeoGig Open API Swagger generated Javascript client</name>
+
+  <build>
+    <sourceDirectory>src/main/java</sourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>io.swagger</groupId>
+        <artifactId>swagger-codegen-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${project.basedir}/../api.yaml</inputSpec>
+              <language>javascript</language>
+              <!-- pass any necessary config options -->
+
+              <!-- see java -jar swagger-codegen-cli.jar config-help -l javascript -->
+              <!-- note: I'm not sure if we should use javascript-closure-angular 
+                instead -->
+              <configOptions>
+                <projectName>geogig</projectName>
+                <projectDescription>Client library for geogig server</projectDescription>
+                <projectVersion>${project.version}</projectVersion>
+                <licenseName></licenseName>
+                <usePromises>true</usePromises> <!-- use Promises as return values from the client API, instead of superagent 
+                  callbacks (Default: false) -->
+                <emitModelMethods>false</emitModelMethods> <!-- generate getters and setters for model properties (Default: false) -->
+                <emitJSDoc>true</emitJSDoc> <!-- generate JSDoc comments (Default: true) -->
+                <useInheritance>true</useInheritance> <!--use JavaScript prototype chains & delegation for inheritance (Default: 
+                  true) -->
+                <hideGenerationTimestamp>true</hideGenerationTimestamp> <!-- hides the timestamp when files were generated (Default: true) -->
+                <useES6>false</useES6> <!-- use JavaScript ES6 (ECMAScript 6) (beta). Default is ES5. (Default: 
+                  false) -->
+              </configOptions>
+
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <dependencies>
+    <dependency>
+       <groupId>io.swagger</groupId>
+       <artifactId>swagger-codegen-cli</artifactId>   
+       <version>2.3.1</version>
+    </dependency>
+  </dependencies>
+
+</project>

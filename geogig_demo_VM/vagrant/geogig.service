@@ -1,0 +1,13 @@
+[Unit]
+Description=GeoGig WebAPI Server
+After=network.target syslog.target
+User=root
+
+
+[Service]
+ExecStart=/usr/bin/java -DGEOGIG_SERVER_CONFIG_DIRECTORY=/home/vagrant/GEOGIG_CONFIG  -jar /home/vagrant/geogig-server-app-0.2-SNAPSHOT.jar 
+Restart=always
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

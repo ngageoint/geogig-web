@@ -1,0 +1,45 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = 'ubuntu/xenial64'
+  config.vm.hostname = 'boundless'
+
+  config.vm.network :forwarded_port, host: 8181, guest: 8181 
+  config.vm.network :forwarded_port, host: 5432, guest: 5432
+
+  config.vm.provider "virtualbox" do |v|
+    v.name = 'Boundless GeoGig Demo Server(64 bit)'
+    v.memory = 3048
+    v.cpus = 2
+    v.customize ["modifyvm", :id, "--description", "Boundless GeoGig Demo Server"]
+  end
+
+  config.vm.synced_folder '.', '/vagrant'
+
+  # PG data
+  config.vm.provision "file", source: "main", destination: "/home/vagrant/main"
+
+  # Geogig spring-boot app
+  config.vm.provision "file", source: "geogig-server-app-0.2-SNAPSHOT.jar", destination: "/home/vagrant/geogig-server-app-0.2-SNAPSHOT.jar"
+
+  # spring boot service
+  config.vm.provision "file", source: "geogig.service", destination: "/home/vagrant/geogig.service"
+  config.vm.provision "shell", inline: "sudo mv /home/vagrant/geogig.service /etc/systemd/system/geogig.service"
+ 
+  # geogig datadir
+  config.vm.provision "file", source: "GEOGIG_CONFIG", destination: "/home/vagrant/GEOGIG_CONFIG"
+
+  
+  config.vm.provision "shell", path: "provision.bash"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.customize [ "modifyvm", :id, "--uartmode1", "disconnected" ]
+  end
+  
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+
+end
+

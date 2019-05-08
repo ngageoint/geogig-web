@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.geogig.web</groupId>
+    <artifactId>geogig-openapi</artifactId>
+    <version>0.2-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>geogig-openapi-java</artifactId>
+  <packaging>pom</packaging>
+  <name>GeoGig Open API Swagger Codegen Java stubs and clients</name>
+  <description>Swagger-codegen generated models, client, and server stubs for Java</description>
+
+  <properties>
+    <java.version>8</java.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>javax.annotation</groupId>
+      <artifactId>javax.annotation-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <modules>
+    <module>model</module>
+    <module>client</module>
+    <module>server</module>
+  </modules>
+</project>

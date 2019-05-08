@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Vector Tile Info</title>
+  <link rel="stylesheet" href="https://openlayers.org/en/v4.6.5/css/ol.css" type="text/css">
+  <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+  <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+  <script src="https://openlayers.org/en/v4.6.5/build/ol-debug.js"></script>
+  <script src="https://rawgit.com/walkermatt/ol-layerswitcher/master/dist/ol-layerswitcher.js"></script>
+  <link rel="stylesheet" href="https://rawgit.com/walkermatt/ol-layerswitcher/master/src/ol-layerswitcher.css" />
+
+  <style>
+      #map {
+        position: relative;
+      }
+
+html, body {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  font-family: sans-serif;
+  font-size: small;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+      #info {
+        z-index: 1;
+        opacity: 0;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        margin: 0;
+        background: rgba(0,60,136,0.8);
+        color: white;
+        border: 0;
+        transition: opacity 100ms ease-in;
+      }
+    </style>
+</head>
+<body>
+<div id="map" class="map">
+  <pre id="info"/>
+</div>
+<script>
+
+     var style_add = new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(0,95,0,1.0)',width : 1.5}),
+                  fill: new ol.style.Fill({color:       'rgba(0,255,0,0.6)'})
+                });
+
+      var style_delete = new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(95,0,0,1.0)',width : 1.5}),
+                  fill: new ol.style.Fill({color:       'rgba(255,0,0,0.6)'})
+                });
+
+       var style_change = new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(95,95,0,1.0)',width : 1.5}),
+                  fill: new ol.style.Fill({color:       'rgba(255,255,0,0.6)'})
+                });
+
+
+        var style_add_highlight = new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(255,255,255,1.0)',width : 1.5}),
+                  fill: new ol.style.Fill({color:       'rgba(0,255,0,0.95)'})
+                });
+
+      var style_delete_highlight = new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(255,255,255,1.0)',width : 1.5}),
+                  fill: new ol.style.Fill({color:       'rgba(255,0,0,0.95)'})
+                });
+
+       var style_change_highlight = new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(0,0,0,1.0)',width : 1.5}),
+                  fill: new ol.style.Fill({color:       'rgba(255,255,0,0.95)'})
+                });
+
+
+        var style_unknown = new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(0,95,95,1.0)',width : 1.5}),
+                  fill: new ol.style.Fill({color:       'rgba(0,255,255,0.6)'})
+                });
+
+
+
+        var style_data= new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(100,100,100,1.0)',width : 1.5}),
+                  fill: new ol.style.Fill({color:       'rgba(95,95,95,0.6)'})
+                });
+
+         var style_data_highlight =new ol.style.Style({
+                  stroke : new ol.style.Stroke({color : 'rgba(255,255,255,1.0)',width : 2.5}),
+                  fill: new ol.style.Fill({color:       'rgba(220,220,220,0.9)'})
+                });
+
+     var data_highlight_id = '';
+     function data_highlight_style(feature) {
+            if (data_highlight_id =='')
+                 return [style_data];
+            if (feature.getProperties()["@id"] ==data_highlight_id)
+                return [style_data_highlight];
+             return [style_data];
+     }
+
+
+     var diff_highlight_id = '';
+
+
+      function diffStyle(feature) {
+        var properties = feature.getProperties();
+        var changetype = properties["geogig.changeType"];
+        var id = properties["@id"];
+
+        if (feature.getProperties()["geogig.changeType"] == 0) {
+            if (diff_highlight_id == id)
+                return [style_add_highlight];
+            return [style_add];
+        }
+        if (feature.getProperties()["geogig.changeType"] == 1) {
+           if (diff_highlight_id == id)
+                return [style_change_highlight];
+            return [style_change];
+        }
+        if (feature.getProperties()["geogig.changeType"] == 2) {
+           if (diff_highlight_id == id)
+                return [style_delete_highlight];
+            return [style_delete];
+        }
+
+        return [style_unknown];
+      }
+
+     var layer_basemap_dark = new ol.layer.Tile({
+            title: 'Dark Matter',
+            type: 'base',
+            visible: true,
+            source: new ol.source.XYZ({
+              url: 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+            })
+          });
+
+     var layer_basemap_osm =   new ol.layer.Tile({
+                        title: 'OSM',
+                        type: 'base',
+                        visible: false,
+                        source: new ol.source.OSM()
+                    })
+
+      var VT_diff_layer =   new ol.layer.VectorTile({
+          title: 'DIFF',
+          type:'geogig.diff',
+              source: new ol.source.VectorTile({
+                format: new ol.format.MVT(),
+                url: 'http://localhost:8181/layers/dblasby/osm_lakes/lakes/366b53bcaf0d161e4d145101dd1427bf268ad342/471fdd5f4e1fbf5a29d415922e9cda4f274b761c/difftiles/{z}/{x}/{-y}.mvt'
+              })
+              , style: diffStyle
+            });
+
+    var VT_layer =   new ol.layer.VectorTile({
+          title: 'Dataset',
+           type:'geogig.dataset',
+              source: new ol.source.VectorTile({
+                format: new ol.format.MVT(),
+                url: 'http://localhost:8181/layers/dblasby/osm_lakes/lakes/tiles/{z}/{x}/{-y}.mvt'
+              })
+              , style: data_highlight_style
+            });
+
+
+      var map = new ol.Map({
+        target: 'map',
+        view: new ol.View({
+          center: [-13734568.135977708, 6182310.483047106],
+          zoom: 13
+        }),
+        layers: [
+                    new ol.layer.Group({
+                         'title': 'Base maps',
+                         layers: [layer_basemap_osm,layer_basemap_dark]
+                      }),
+                     new ol.layer.Group({
+                         'title': 'GeoGig',
+                         layers: [VT_layer,VT_diff_layer]
+                      })
+              ]
+
+      });
+
+      map.on('pointermove', showInfo);
+
+      var layerSwitcher = new ol.control.LayerSwitcher({
+        tipLabel: 'Layers....'
+    });
+   map.addControl(layerSwitcher);
+
+
+   function only_geogig_data (layer) {
+         return layer.getProperties()["type"] == "geogig.dataset";
+   }
+
+   function only_geogig_diff (layer) {
+        return layer.getProperties()["type"] == "geogig.diff";
+   }
+
+
+
+      var info = document.getElementById('info');
+      function showInfo(event) {
+        var features_data = map.getFeaturesAtPixel(event.pixel,{layerFilter:only_geogig_data});
+        var features_diff = map.getFeaturesAtPixel(event.pixel,{layerFilter:only_geogig_diff});
+
+        if (!features_data && !features_diff) {
+          info.innerText = '';
+          info.style.opacity = 0;
+          if (data_highlight_id != ''){
+                data_highlight_id = '';
+                map.getLayers().getArray()[1].getLayers().item(0).changed();
+          }
+           if (diff_highlight_id != ''){
+                diff_highlight_id = '';
+                map.getLayers().getArray()[1].getLayers().item(1).changed();
+          }
+          return;
+        }
+
+        if (features_diff) {
+
+              if (data_highlight_id != ''){
+                      data_highlight_id = '';
+                      map.getLayers().getArray()[1].getLayers().item(0).changed();
+              }
+
+                var properties = features_diff[0].getProperties();
+                var id =properties["@id"];
+                if (diff_highlight_id != id){
+                        diff_highlight_id = id;
+                        map.getLayers().getArray()[1].getLayers().item(1).changed();
+                  }
+
+                info.style.opacity = 1;
+                var type = properties["geogig.changeType"];
+                if (type == 1){
+                     info.innerHTML = getChangedHTML(features_diff[0]);
+                     info.style.background = 'rgba(140,138,0,0.9)';
+                }
+                else if (type == 2){
+                     info.innerHTML = getOldHTML(features_diff[0]);
+                     info.style.background = 'rgba(125,0,0,0.9)';
+                }
+                else {
+                     info.innerHTML = getNewHTML(features_diff[0]);
+                     info.style.background = 'rgba(0,125,0,0.9)';
+                }
+        }
+        else {
+                if (diff_highlight_id != ''){
+                    diff_highlight_id = '';
+                    map.getLayers().getArray()[1].getLayers().item(1).changed();
+                }
+                var properties = features_data[0].getProperties();
+                var id =properties["@id"];
+                if (data_highlight_id != id){
+                        data_highlight_id = id;
+                        map.getLayers().getArray()[1].getLayers().item(0).changed();
+                  }
+
+                info.innerHTML = getAllHTML(features_data[0]);
+                info.style.opacity = 1;
+                info.style.background = 'rgba(75,75,75,0.9)';
+        }
+      }
+
+       function getNewHTML(feature) {
+          var properties = feature.getProperties();
+          var real_props = getOldNewProperties(properties);
+          var html = "<table>";
+           html += "<tr><td></td><td>NEW</td></tr>";
+         for (var i = 0; i < real_props.length; i++) {
+              prop = real_props[i];
+              html += "<tr><td>";
+              html += prop;
+              html += "</td><td>";
+              html += properties["new_"+prop];
+              html += "</td></tr>\n";
+          }
+          html += "</table>";
+          return html;
+      }
+
+      function getOldHTML(feature) {
+          var properties = feature.getProperties();
+          var real_props = getOldNewProperties(properties);
+          var html = "<table>";
+           html += "<tr><td></td><td>OLD</td></tr>";
+         for (var i = 0; i < real_props.length; i++) {
+              prop = real_props[i];
+              html += "<tr><td>";
+              html += prop;
+              html += "</td><td>";
+              html += properties["old_"+prop];
+              html += "</td></tr>\n";
+          }
+          html += "</table>";
+          return html;
+      }
+
+       function getAllHTML(feature) {
+          var properties = feature.getProperties();
+          var real_props = getAllProperties(properties);
+          var html = "<table>";
+           html += "<tr><td></td><td>Value</td></tr>";
+         for (var i = 0; i < real_props.length; i++) {
+              prop = real_props[i];
+              html += "<tr><td>";
+              html += prop;
+              html += "</td><td>";
+              html += properties[prop];
+              html += "</td></tr>\n";
+          }
+          html += "</table>";
+          return html;
+      }
+
+
+
+      function getChangedHTML(feature) {
+          var properties = feature.getProperties();
+          var real_props = getOldNewProperties(properties);
+          var html = "<table>";
+           html += "<tr><td></td><td>OLD</td><td>NEW</td></tr>";
+         for (var i = 0; i < real_props.length; i++) {
+              prop = real_props[i];
+              html += "<tr><td>";
+              html += prop;
+              html += "</td><td>";
+              html += properties["old_"+prop];
+              html += '</td><td>';
+              html += properties["new_"+prop];
+              html += "</td></tr>\n";
+          }
+          html += "</table>";
+          return html;
+      }
+
+      function getOldNewProperties(properties) {
+          var result = [];
+          for(var key in properties) {
+              if (key.startsWith("new_") || key.startsWith("old_") ) {
+                  var root = key.substring(4);
+                  if (result.indexOf(root) == -1)
+                      result.push(root);
+              }
+          }
+          return result;
+      }
+
+        function getAllProperties(properties) {
+          var result = [];
+          for(var key in properties)
+                 result.push(key);
+
+          return result;
+      }
+
+    </script>
+</body>
+</html>

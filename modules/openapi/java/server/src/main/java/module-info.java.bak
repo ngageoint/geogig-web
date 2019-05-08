@@ -1,0 +1,14 @@
+module geogig.openapi.server {
+    requires slf4j.api;
+    requires transitive java.validation;
+    requires transitive geogig.openapi.model;
+    requires transitive swagger.annotations;
+    requires transitive com.fasterxml.jackson.databind;
+    requires transitive spring.core;
+    requires transitive spring.context;
+    requires transitive spring.beans;
+    requires transitive spring.web;
+    requires transitive spring.webmvc;
+
+    exports org.geogig.web.server.api;
+}

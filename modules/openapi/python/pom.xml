@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.geogig.web</groupId>
+    <artifactId>geogig-openapi</artifactId>
+    <version>0.2-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>geogig-openapi-python-client</artifactId>
+  <packaging>jar</packaging>
+  <name>GeoGig Open API Swagger generated Python client</name>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.swagger</groupId>
+        <artifactId>swagger-codegen-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${project.basedir}/../api.yaml</inputSpec>
+              <language>python</language>
+              <generateModels>true</generateModels>
+              <generateApis>true</generateApis>
+              <apiPackage>api</apiPackage>
+              <modelPackage>model</modelPackage>
+              <configOptions>
+                <!-- see java -jar swagger-codegen-cli.jar config-help -l 
+                  python -->
+                <projectName>geogig-api</projectName>
+                <packageName>geogig_client</packageName>
+                <packageVersion>${project.version}</packageVersion>
+                <!--packageUrl></packageUrl -->
+                <sortParamsByRequiredFlag>true</sortParamsByRequiredFlag>
+              </configOptions>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

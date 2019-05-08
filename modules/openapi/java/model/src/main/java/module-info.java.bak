@@ -1,0 +1,18 @@
+module geogig.openapi.model {
+    requires static lombok;
+    requires transitive  slf4j.api;
+    requires transitive java.sql; //because of ValueTypes
+    requires transitive org.locationtech.jts;
+    requires transitive com.fasterxml.jackson.core;
+    requires transitive com.fasterxml.jackson.databind;
+    requires transitive com.fasterxml.jackson.datatype.jsr310;
+    requires transitive com.fasterxml.jackson.dataformat.smile;
+    requires transitive jackson.annotations;
+    requires static swagger.annotations;
+    requires static javax.servlet.api;
+    
+    exports org.geogig.web.model;
+    exports org.geogig.web.streaming;
+    exports org.geogig.web.streaming.geojson;
+    exports org.geogig.web.streaming.json;
+}

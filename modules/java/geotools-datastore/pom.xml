@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.geogig.web</groupId>
+    <artifactId>geogig-java</artifactId>
+    <version>0.2-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>geogig-geotools-datastore</artifactId>
+  <packaging>jar</packaging>
+  <name>GeoGig Open API GeoTools DataStore</name>
+
+  <build>
+    <sourceDirectory>src/main/java</sourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Automatic-Module-Name>geogig.web.geotools.datastore</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+      <!-- 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached> 
+              <shadedClassifierName>geoserver</shadedClassifierName>
+              <transformer
+                implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+              <artifactSet>
+                <excludes>
+                  <exclude>org.geotools:*</exclude>
+                  <exclude>org.ejml:*</exclude>
+                  <exclude>commons-pool:commons-pool</exclude> 
+                  <exclude>net.java.dev.jsr-275:jsr-275</exclude>
+                  <exclude>jgridshift:jgridshift</exclude> 
+                  <exclude>net.sf.geographiclib:*</exclude>
+                  <exclude>org.jdom:*</exclude> 
+                  <exclude>javax.media:jai_core</exclude>
+
+                  <exclude>org.hsqldb:hsqldb</exclude>
+
+                  <exclude>com.vividsolutions:*</exclude>
+                  <exclude>com.google.guava:guava</exclude>
+                </excludes>
+              </artifactSet>
+              <relocations>
+                <relocation>
+                  <pattern>com.fasterxml.jackson</pattern>
+                  <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.glassfish</pattern> 
+                  <shadedPattern>shaded.org.glassfish</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+       -->
+    </plugins>
+  </build>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.geogig.web</groupId>
+      <artifactId>geogig-java-client</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.geogig.web</groupId>
+      <artifactId>geogig-geotools-model-bridge</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-epsg-hsql</artifactId>
+      <version>${gt.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+
+</project>

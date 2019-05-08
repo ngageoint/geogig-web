@@ -1,0 +1,17 @@
+module geogig.openapi.client {
+    requires transitive geogig.openapi.model;
+    requires static lombok;
+    requires java.ws.rs;
+    requires jersey.common;
+    requires jersey.client;
+    requires jersey.media.json.jackson;
+    requires jersey.media.multipart;
+    requires com.fasterxml.jackson.datatype.jsr310;
+    requires com.fasterxml.jackson.databind;
+
+    requires java.logging;
+
+    exports org.geogig.web.client.internal;
+    exports org.geogig.web.client.internal.auth;
+    
+}

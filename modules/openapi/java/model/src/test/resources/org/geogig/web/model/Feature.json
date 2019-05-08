@@ -1,0 +1,12 @@
+{
+   "type" : "Feature",
+   "id" : "6d39c44113",
+   "properties" : {
+      "name" : "Palmerston N. Int`l"
+   },
+   "geometry" : {
+      "name" : "location",
+      "type" : "Point",
+      "coordinates" : [175.62128328, -40.32331789]
+   }
+}

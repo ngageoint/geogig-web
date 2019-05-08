@@ -1,0 +1,13 @@
+module geogig.web.client {
+    requires static lombok;
+    requires slf4j.api;
+    requires javax.inject;
+    requires org.eclipse.jdt.annotation;
+    requires com.google.common;
+    requires transitive geogig.openapi.model;
+    requires transitive geogig.openapi.client;
+    requires transitive java.desktop;//for BufferedImage in User.avatar
+    
+    exports org.geogig.web.client;
+    exports org.geogig.web.client.jersey;
+}

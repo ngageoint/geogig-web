@@ -1,0 +1,72 @@
+syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+
+
+
+option java_package = "org.geogig.server.app.converters.proto3";
+option java_outer_classname = "FeatureCollectionProtos";
+
+message FeatureType {
+      string featureTypeName = 1;
+      string defaultGeometryName = 2;
+      repeated AttributeType attribute = 3;
+
+     message AttributeType {
+             string name = 1;
+             string type = 2;
+             string SRS = 3;
+     }
+}
+
+
+
+message Feature {
+    string ID = 1;
+    bytes geom =2;
+    repeated Value value = 3;
+}
+
+ message Value {
+        oneof value_type {
+            string string_value = 1;
+            double double_value = 2;
+            float  float_value = 3;
+            sint32 int_value = 4;
+            sint64 long_value = 5;
+            bool bool_value = 6;
+            bool null_value = 7;
+            bytes geom_value = 8;
+
+            sint32 byte_value = 9;
+            sint32 short_value = 10;
+            string char_value = 11;
+
+            string uuid_value = 12;     // java.util.UUID -- use string representation
+
+            // dates -- these are how the ValueSerializer does it job...
+
+            sint64 datetime_value =13;  // java.util.Date -- ms (long) since epoch
+            sint64 date_value =14;      // java.sql.Date -- ms (long) since epoch (shouldn't have time component)
+            sint64 time_value=15;       // java.sql.Time -- ms (long)  since epoch (shouldn't have date component)
+
+            // NOTE: not supported by QT (use datetime)
+            google.protobuf.Timestamp timestamp_value = 16; //java.sql.Timestamp -- seconds and nanos
+
+            // TO DO when adding/changing something above
+            //
+            //  JAVA:
+            //       /Users/dblasby/SHARED/protoc-3.5.1-osx-x86_64/bin/protoc -I=. --java_out=../../../../../.. messages.proto
+            //
+            //  a) FeatureCollectionHttpMessageConverterProto3 - createValue() to go from java->proto
+            //  b) FeatureCollectionHttpMessageConverterProto3 - convert() to go from proto->java
+            //
+            // Python - QGIS Plugin:
+            //       /Users/dblasby/SHARED/protoc-3.5.1-osx-x86_64/bin/protoc -I=. --python_out="/Users/dblasby/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/geogig/protobuff"  messages.proto
+
+            //
+            //  a)  proto2qgis.py - getValue() - protobuf->python (QVairant)
+            //  b)  proto2qgis.py - convert() - QVariant & QVariant type # ->protobuf
+            //  c)  proto2qgis.py - typeNumbToBinding() - QVariant Type # -> protobuf field #
+            //  d)  featuretype.py - createField()  - ft_attribute.type name -> QVariant type
+        }
+    }

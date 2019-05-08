@@ -1,0 +1,52 @@
+#https://docs.spring.io/spring-boot/docs/current/reference/html/common-application-properties.html
+
+server:
+  servlet:
+    context-path: /
+  port: 8181
+
+  # Server compression
+  compression:
+    enabled: true
+    min-response-size: 2048
+    mime-types: application/vnd.geo+json,application/json,application/geogig.x-protobuf
+
+spring:
+  # ***************************
+  # APPLICATION FAILED TO START
+  # ***************************
+  # Description:
+  # The bean 'org.springframework.context.config.internalBeanConfigurerAspect', defined in null, could not be registered. A bean with that name has already been defined in null and overriding is disabled.
+  # Action:
+  # Consider renaming one of the beans or enabling overriding by setting spring.main.allow-bean-definition-overriding=true   
+  main:
+     allow-bean-definition-overriding: true
+  profiles:
+     active: dev
+  jackson:
+    #date-format: orgorg.geogig.web.client.internal.RFC3339DateFormat
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+    default-property-inclusion: NON_ABSENT
+  servlet:
+    multipart.max-file-size: 10000MB
+    multipart.max-request-size: 10000MB
+
+springfox:
+  documentation:
+    swagger:
+      v2:
+        path: /api-docs
+
+security:
+  oauth2:
+    client:
+      client-id: geogig
+      client-secret: geogigsecret
+      scope: read,write
+      auto-approve-scopes: '.*'
+
+logging:
+  level:
+    org.geogig.web: DEBUG
+    org.springframework.security: INFO

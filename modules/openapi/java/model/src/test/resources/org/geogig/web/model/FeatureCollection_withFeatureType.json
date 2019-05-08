@@ -1,0 +1,35 @@
+{
+   "type" : "FeatureCollection",
+   "crs" : {
+      "type" : "name",
+      "properties" : {
+         "name" : "EPSG:4326"
+      }
+   },
+   "features" : [
+      {
+         "type" : "Feature",
+         "id" : "6d39c44113",
+         "properties" : {
+            "name" : "Palmerston N. Int`l"
+         },
+         "geometry" : {
+            "name" : "location",
+            "type" : "Point",
+            "coordinates" : [175.62128328, -40.32331789]
+         }
+      },
+      {
+         "type" : "Feature",
+         "id" : "6d39c44114",
+         "properties" : {
+            "name" : "Mbuji Mayi"
+         },
+         "geometry" : {
+            "type" : "Point",
+            "name" : "location",
+            "coordinates" : [23.5721092, -6.12484541]
+         }
+      }
+   ]
+}

@@ -1,0 +1,25 @@
+{
+   "prototype" : {
+      "type" : "Feature",
+      "properties" : {
+         "name" : "modified name"
+      },
+      "id" : null,
+      "geometry" : {
+         "coordinates" : [
+            0.5,
+            0.5
+         ],
+         "type" : "Point",
+         "name" : "location"
+      }
+   },
+   "filter" : {
+      "bbox" : [
+         0.5,
+         0.5,
+         1.5,
+         1.5
+      ]
+   }
+}

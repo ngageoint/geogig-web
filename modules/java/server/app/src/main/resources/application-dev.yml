@@ -1,0 +1,14 @@
+#https://docs.spring.io/spring-boot/docs/current/reference/html/common-application-properties.html
+
+GEOGIG_SERVER_CONFIG_DIRECTORY: /data/geogig_web/jpa/config
+
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:file:${GEOGIG_SERVER_CONFIG_DIRECTORY}/geogig-web-db;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update #By default the JPA database configuration is set to create the tables at the beginning and drop at the end.

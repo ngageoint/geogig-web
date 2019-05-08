@@ -1,0 +1,2781 @@
+swagger: '2.0'
+info:
+  title: GeoGig Web API
+  version: "0.1.0"
+  description: 'GeoGig Web API.  You can find out more about
+    GeoGig at [http://geogig.org](http://geogig.org)'
+  termsOfService: http://geogig.io/terms/
+  contact:
+    email: groldan@boundlessgeo.com
+  license:
+    name: Eclipse Distribution License - v 1.0
+    url: https://github.com/locationtech/geogig/blob/master/LICENSE.txt
+# host: localhost:8182
+# basePath: /
+
+produces: 
+- 'application/json'
+- 'application/x-jackson-smile'
+
+externalDocs:
+  description: Find out more about GeoGig
+  url: http://geogig.org/docs
+
+tags:
+- name: Repository Stores
+  description: 'Repository colllections admin API'
+- name: Users
+  description: 'User Administration API.'
+- name: Repository Management
+  description: 'Repository Administration API'
+- name: Collaboration
+  description: 'Collaboration workflows'
+- name: Raw Repository Access
+  description: 'Access to raw repository resources'
+- name: Transaction Management
+  description: 'Administration of geogig long running transactions'
+- name: Feature Service
+  description: 'Access to collections of features in repositories as a feature service using OGC Filter'
+- name: Async
+  description: 'Asynchronous operations'
+
+schemes:
+ - http
+ - https
+
+securityDefinitions:
+  BasicAuth:
+    type: basic
+  ApiKeyAuth:
+    type: apiKey
+    in: header
+    name: X-GeoGig-API-Key
+  OAuth2:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: https://example.com/oauth/authorize
+    tokenUrl: https://example.com/oauth/token
+    scopes:
+      read: Grants read access
+      write: Grants write access
+      admin: Grants read and write access to administrative information
+      
+security: #This makes all end points work with any of the three auth mechanisms... so far so good.
+  - BasicAuth: []
+  - ApiKeyAuth: []
+  - OAuth2: []
+  
+parameters:
+  storeName: 
+    name: store
+    in: path
+    required: true
+    description: 'Name of the repository store.'
+    type: string
+  userName: 
+    name: user
+    in: path
+    required: true
+    description: repository login owner
+    type: string
+  repoName: 
+    name: repo
+    in: path
+    required: true
+    description: repository name
+    type: string
+  branchName: 
+    name: branch
+    in: path
+    required: true
+    description: branch name
+    type: string
+  layerName: 
+    name: layer
+    in: path
+    required: true
+    description: layer name for feature service
+    type: string
+  layerInfo:
+    name: layerInfo
+    in: body
+    required: true
+    description: layer name for feature service
+    schema:
+      $ref: '#/definitions/LayerInfo'
+  featureId: 
+    name: featureId
+    in: path
+    required: true
+    description: feature id filter for feature service
+    type: string
+  featureType:
+    name: featureType
+    in: body
+    required: true
+    description: FeatureType for the layer
+    schema:
+      $ref: '#/definitions/RevisionFeatureType'
+  head: 
+    name: head
+    in: header
+    required: false
+    description: a refSpec string leading to a root RevTree
+    type: string
+    default: WORK_HEAD
+    minItems: 1
+    maxItems: 1
+  transactionRequired:
+    name: geogig-transaction-id
+    in: header
+    required: true
+    description: transaction identifier, required
+    type: string
+    format: uuid
+  transactionOptional:
+    name: geogig-transaction-id
+    in: header
+    required: false
+    description: Optional transaction identifier
+    type: string
+    format: uuid
+  transactionId:
+    name: transactionId
+    in: path
+    required: true
+    description: transaction identifier #as a path parameter
+    type: string
+    format: uuid
+  taskId:
+    name: taskId
+    in: path
+    required: true
+    description: Async task identifier
+    type: string
+    format: uuid
+  bbox:
+    name: bbox
+    description: 'Comma separated values for a query bounding box in minx,miny,maxx,maxy format. Example: ?bbox=-180,-90,180,90'
+    in: query
+    required: false
+    type: array
+    items:
+      type: number
+      format: double
+      minItems: 4
+      maxItems: 4
+    collectionFormat: csv
+  attributes:
+    name: attributes
+    description: 'Ordered list of attribute names to return'
+    in: query
+    required: false
+    type: array
+    items:
+      type: string
+    collectionFormat: csv
+  page:
+    name: page
+    description: 'Page number to retrive when requesting collections, starts at 1.'
+    in: query
+    required: false
+    type: integer
+    format: int32
+    minimum: 1
+  pageSize:
+    name: pageSize
+    description: 'number of elements to return in a paging query. If page is specified and pageSize is not, pageSize defaults to 100. If pageSize is specified, page becomes mandatory'
+    in: query
+    required: false
+    type: integer
+    format: int32
+    minimum: 10
+    maximum: 10000
+  pullRequestId:
+    name: pr
+    in: path
+    required: true
+    type: integer
+    format: int32
+    minimum: 1
+    description: Pull request identifier
+
+paths:
+
+  /info/version:
+    get:
+      summary: 'Obtain service version information'
+      tags: 
+      - ServiceInfo
+      operationId: getVersion
+      responses:
+        200:
+          description: 'Get API and server GeoGig version'
+          schema:
+            $ref: '#/definitions/VersionInfo'
+
+  # Repository stores API
+  /stores:
+    get:
+      tags:
+      - Repository Stores
+      summary: 'List summary information for available collections of repositories. Only stores visible to the current user are listed.'
+      operationId: getStores
+      responses:
+        200:
+          description: Collection of summary information for repository stores visible to the authenticated user
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/StoreInfo'
+            example: [
+                      {
+                        "name": "default",
+                        "description": "Default store for user repositories"
+                      },
+                      {
+                        "name": "enterprise",
+                        "description": "Repository store for enterprise accounts"
+                      }
+                    ]
+    post:
+      tags:
+      - Repository Stores
+      summary: 'Creates a new repository store'
+      operationId: createStore
+      consumes: 
+      - application/json
+      parameters: 
+        - name: storeInfo
+          in: body
+          description: 'The repository to create'
+          required: true
+          schema:
+            $ref: '#/definitions/StoreInfo'
+      responses:
+        201: 
+          description: Created
+          examples: 
+                    id: efbd2ffe-415d-4a7d-95d3-e23b3b86524e
+                    identity: postgres
+                    description: Default postgresql
+                    enabled: true
+                    connectionInfo:
+                      type: PostgresStoreInfo
+                      server: localhost
+                      port: 5432
+                      database: geogig_web
+                      schema: public
+                      user: postgres
+                      password: geo123
+          schema:
+            $ref: '#/definitions/StoreInfo'
+        400:
+          description: Bad request.
+        403:
+          description: Unauthorized. Only site admins can manage these resources.
+    put:
+      tags:
+      - Repository Stores
+      summary: 'Update repository info'
+      description: 'Updates a repository store'
+      operationId: modifyStore
+      consumes: 
+      - application/json
+      parameters: 
+        - name: storeInfo
+          in: body
+          description: 'The repository to update'
+          required: true
+          schema:
+            $ref: '#/definitions/StoreInfo'
+      responses:
+        200:
+          description: Store updated successfully
+          schema:
+            $ref: '#/definitions/StoreInfo'
+        400:
+          description: Missing required field(s)
+          schema:
+            $ref: '#/definitions/Error'
+        403:
+          description: Unauthorized. Only site admins can manage these resources.
+          schema:
+            $ref: '#/definitions/Error'
+  
+  /stores/{store}:
+    parameters:
+      - $ref: '#/parameters/storeName'
+    get:
+      summary: 'Get repository store info by name'
+      tags: 
+      - Repository Stores
+      operationId: getStore
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/StoreInfo'
+        404:
+          description: Not found, or the user has not enough credentials to see it
+    delete:
+      summary: 'Remove the repository store configuration (disables all repositories on it)'
+      tags: 
+      - Repository Stores
+      operationId: removeStore
+      responses:
+        204:
+          description: The server successfully removed the store configuration and is not returning any content
+        404:
+          description: Not found, or the user has not enough credentials to see it
+        403:
+          description: Unauthorized. Only site admins can manage these resources.
+
+  /stores/{store}/repos:
+    parameters:
+      - $ref: '#/parameters/storeName'
+    get:
+      tags: 
+      - Repository Stores
+      summary: 'List summary information for all repositories on this repository store'
+      operationId: listStoreRepos
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/RepositoryInfo'
+        404:
+          description: Not found, or the user has not enough credentials to see it
+  /stores/{store}/repos/count:
+    parameters:
+      - $ref: '#/parameters/storeName'
+    get:
+      tags: 
+      - Repository Stores
+      summary: 'Return the number of repositories held on this store'
+      operationId: countStoreRepos
+      responses:
+        200:
+          description: OK
+          schema:
+            type: integer
+            format: int32
+        404:
+          description: Not found, or the user has not enough credentials to see it
+
+ # User Administration API
+  /users:
+    get:
+      tags:
+      - Users
+      summary: 'List summary information for available collections of repositories. Only stores visible to the current user are listed.'
+      operationId: getUsers
+      responses:
+        200:
+          description: Collection of summary information for repository stores visible to the authenticated user
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/UserInfo'
+    post:
+      tags:
+      - Users
+      summary: 'Creates a new user'
+      operationId: createUser
+      consumes: 
+      - application/json
+      parameters: 
+        - name: userInfo
+          in: body
+          description: 'The repository to create'
+          required: true
+          schema:
+            $ref: '#/definitions/UserInfo'
+      responses:
+        201: 
+          description: Created
+          schema:
+            $ref: '#/definitions/UserInfo'
+        400:
+          description: Bad request, missing information. Retrieve error from X-GeoGig-error response header
+        401:
+          description: Authentication required.
+        403:
+          description: Unauthorized. Only site admins can manage these resources.
+    put:
+      tags:
+      - Users
+      summary: 'Updates a user info'
+      operationId: modifyUser
+      consumes: 
+      - application/json
+      parameters: 
+        - name: userInfo
+          in: body
+          description: 'The updated user information'
+          required: true
+          schema:
+            $ref: '#/definitions/UserInfo'
+      responses:
+        200:
+          description: User information updated successfully
+          schema:
+            $ref: '#/definitions/UserInfo'
+        409:
+          description: Conflict. i.e. tried to rename a user to a name that's already taken.
+        403:
+          description: Unauthorized. Only site admins can manage these resources.
+  
+  /user:
+    get:
+      tags: 
+      - Users
+      summary: 'Get the request''s authenticated user info'
+      operationId: getSelf
+      responses:
+        200:
+          description: 'OK, return authenticated user info'
+          schema:
+            $ref: '#/definitions/UserInfo'
+        401:
+          description: 'Unauthenticated'
+
+  /users/{user}:
+    parameters:
+      - $ref: '#/parameters/userName'
+    get:
+      tags: 
+      - Users
+      summary: 'Obtain either public or public + private user information depending on auth credentials'
+      operationId: getUser
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/UserInfo'
+        404:
+          description: Not found.
+    delete:
+      tags: 
+      - Users
+      summary: 'Delete user'
+      operationId: deleteUser
+      responses:
+        204:
+          description: 'User deleted sucessfully, no content returned'
+        404:
+          description: 'User not found.'
+        401:
+          description: 'Unauthorized, authentication required'
+        403:
+          description: 'Forbidden, authenticated user does not have authorization to modify the users'
+
+  /users/{user}/repos:
+    parameters:
+      - $ref: '#/parameters/userName'
+    get:
+      tags: 
+      - Users
+      summary: 'List the repositories owned by the given user'
+      operationId: getUserRepositories
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/RepositoryInfo'
+        404:
+          description: Not found.
+  /users/{user}/password:
+    parameters:
+      - $ref: '#/parameters/userName'
+    put:
+      tags: 
+      - Users
+      summary: 'Resets the HTTP Basic password for the user. The request issuer must be either a site admin or the user itself. Note this is a temporary meassure until more advanced auth services are used'
+      operationId: resetPassword
+      consumes: 
+      - application/json
+      parameters:
+        - name: newPassword
+          in: body
+          schema:
+            type: string
+      responses:
+        204:
+          description: OK, no content returned
+        404:
+          description: User not found.
+        401:
+          description: 'Unauthorized, authentication required'
+        403:
+          description: 'Forbidden, authenticated user does not have authorization to modify this user'
+  /users/{user}/followers:
+    parameters:
+      - $ref: '#/parameters/userName'
+    get:
+      tags: 
+      - Users
+      summary: 'List users following the given user'
+      operationId: listFollowers
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/UserInfo'
+        404:
+          description: Not found.
+
+  /users/{user}/following:
+    parameters:
+      - $ref: '#/parameters/userName'
+    get:
+      tags: 
+      - Users
+      summary: 'List of users the given user follows'
+      operationId: listFollowing
+      responses:
+        200:
+          description: 'List of users this user is following'
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/UserInfo'
+        404:
+          description: 'User not found.'
+
+  /users/{user}/following/{followee}:
+    parameters:
+      - $ref: '#/parameters/userName'
+      - name: followee
+        in: path
+        type: string
+        description: 'The name of the user to follow'
+        required: true
+    get:
+      tags: 
+      - Users
+      summary: 'Test whether :user is a follower of :followee'
+      operationId: follows
+      responses:
+        200:
+          description: 'true if :user is following :followee, false otherwise'
+          schema:
+            type: boolean
+        404:
+          description: 'User not found.'
+    put:
+      tags: 
+      - Users
+      summary: 'Follow a user'
+      operationId: follow
+      responses:
+        200:
+          description: 'true if :user is a new follower of :followee when this call returns, false if it already was'
+          schema:
+            type: boolean
+        404:
+          description: 'User or followee not found.'
+        401:
+          description: 'Unauthorized, authentication required'
+        403:
+          description: 'Forbidden, authenticated user does not have authorization to modify the users''s followers'
+    delete:
+      tags: 
+      - Users
+      summary: 'Unfollow a user'
+      operationId: unfollow
+      responses:
+        200:
+          description: 'true if user is no longer following followee when this call returns, false if it already was not'
+          schema:
+            type: boolean
+        404:
+          description: 'User or followee not found.'
+        401:
+          description: 'Unauthorized, authentication required'
+        403:
+          description: 'Forbidden, authenticated user does not have authorization to modify the users''s followers'
+  # Repository Administration API
+  /repos:
+    get:
+      summary: 'List repositories summary information' 
+      tags:
+      - Repository Management
+      operationId: listRepositories
+      parameters: 
+        - name: topics
+          in: query
+          type: array
+          items:
+            type: string
+      responses:
+        200:
+          description: successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/RepositoryInfo'
+  /repos/{user}:
+    parameters:
+      - $ref: '#/parameters/userName'
+    get:
+      summary: 'List of available repositories summary information' 
+      tags:
+      - Repository Management
+      operationId: listUserRepositories
+      responses:
+        200:
+          description: successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/RepositoryInfo'
+  /repos/{user}/{repo}:
+    parameters:
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+    get:
+      tags:
+      - Repository Management
+      summary: 'Get full repository information'
+      description: 'Obtain a manifest about the current status of the repository'
+      operationId: getRepository
+      responses:
+        200:
+          description: successful operation
+          schema:
+            $ref: '#/definitions/RepositoryInfo'
+        404:
+          description: Object does not exist
+    post:
+      tags:
+      - Repository Management
+      summary: 'Create a new repository'
+      description: 'Create a new repository'
+      operationId: createRepository
+      parameters:
+        - name: targetStore
+          in: query
+          description: 'Optionally, the name of the target store where to save the repo. Defaults to the owner''s default store.'
+          type: string
+          required: false
+      responses:
+        201:
+          description: repository created successfully
+          schema:
+            $ref: '#/definitions/RepositoryInfo'
+        409:
+          description: Repository with same id/name already exists
+    delete:
+      tags: 
+      - Repository Management
+      summary: 'Delete repository'
+      description: 'Deletes the repository addressed by the request path'
+      operationId: deleteRepository
+      responses:
+        204:
+          description: The server successfully deleted the repository and is not returning any content
+        403:
+          description: The Authenticated user has no rights to delete the given repository
+        404:
+          description: Repository not found
+    put:
+      tags: 
+      - Repository Management
+      summary: 'Modify repository'
+      description: 'Modify repository'
+      operationId: modifyRepository
+      consumes: 
+      - application/json
+      parameters: 
+        - name: repository
+          in: body
+          description: 'The new repository settings'
+          required: true
+          schema:
+            $ref: '#/definitions/RepositoryInfo'
+      responses:
+        201:
+          description: repository updated successfully
+          schema:
+            $ref: '#/definitions/RepositoryInfo'
+        409:
+          description: Repository with same id/name already exists
+        403:
+          description: The Authenticated user has no rights to delete the given repository
+        404:
+          description: Repository not found
+
+  /repos/{user}/{repo}/forks:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+    get:
+      tags: 
+      - Repository Management
+      summary: 'List repositories that are forks of this one'
+      operationId: listForks
+      responses:
+        200:
+          description: OK, list of repositories that are forks of this repo
+          schema:
+            $ref: '#/definitions/RepositoryInfo'
+    post:
+      tags: 
+      - Repository Management
+      - Async
+      summary: 'Fork this repository. Async operation.'
+      description: 'Forks this repository asynchronously to the authenticated user''s account. Forking is the same than cloning but the term is used in this context to differentiate cloning to any allowed remote URI vs creating clone of this repository inside this server.'
+      operationId: forkRepository
+      produces: 
+      - application/json
+      parameters: 
+        - name: forkName
+          in: query
+          required: false
+          description: Optional name for the forked repository under the authenticated user's account. If not provided defaults to the source repository name
+          type: string
+        - name: targetStore
+          in: query
+          description: 'Name of the repository store writable to the authenticated user to fork this repo to. If not provided, the current user''s default store is used.'
+          required: false
+          type: string
+      responses:
+        202:
+          description: Fork request accepted and scheduled to be processed
+          schema:
+            $ref: '#/definitions/AsyncTaskInfo'
+        409:
+          description: Repository with same id/name already exists
+        403:
+          description: The Authenticated user has no rights to delete the given repository
+        404:
+          description: Repository not found, or target store not found, or target store name already used
+  /repos/{user}/{repo}/watchers:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+    get:
+      tags: 
+      - Repository Management
+      summary: 'List users watching this repository'
+      operationId: listWatchers
+      responses:
+        200:
+          description: OK, list of users watching this repo
+          schema:
+            $ref: '#/definitions/UserInfo'
+    post:
+      tags: 
+      - Repository Management
+      summary: 'Start watching this repo.'
+      operationId: watchRepository
+      responses:
+        204:
+          description: Authenticated user successfully started watching this repo, no content is produced
+        409:
+          description: Authenticated user is already watching this repository
+    delete:
+      tags: 
+      - Repository Management
+      summary: 'Stop watching this repo.'
+      operationId: unwatchRepository
+      responses:
+        204:
+          description: User successfully unwatched this repository, no content is produced
+        404:
+          description: Authenticated user was not watching this repository
+  /repos/{user}/{repo}/watchers/count:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+    get:
+      tags: 
+      - Repository Management
+      summary: 'Number of users watching this repository'
+      operationId: countWatchers
+      responses:
+        200:
+          description: OK, list of users watching this repo
+          schema:
+            type: integer
+            format: int32
+
+  # Collaboration worflow API
+  /repos/{user}/{repo}/branch:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Collaboration
+      summary: Get the currently checked out branch, optionally indicating a transaction
+      operationId: getCurrentBranch
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/BranchInfo'
+
+  /repos/{user}/{repo}/branches:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Collaboration
+      summary: 'List all branches in the current repository'
+      operationId: listBranches
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/BranchInfo'
+
+  /repos/{user}/{repo}/branches/{branch}:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/branchName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Collaboration
+      summary: Get a branch by name
+      operationId: getBranch
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/BranchInfo'
+    delete:
+      tags:
+      - Collaboration
+      summary: Delete a branch by name
+      operationId: deleteBranch
+      responses:
+        204:
+          description: OK, no content returned
+    post:
+      tags:
+      - Collaboration
+      summary: Create a new branch by name
+      operationId: createBranch
+      parameters: 
+        - name: commitish
+          type: string
+          in: query
+          required: true
+          description: 'Origin commit-ish string where to create the branch from. Can be another branche''s name, a commit sha id, or any other string that rev-parse resolves to a commit (e.g. HEAD~2, refs/heads/branchname, etc.)'
+        - name: description
+          type: string
+          required: false
+          in: header
+          description: Optional short description specifying the purpose of the branch
+      responses:
+        201:
+          description: Created
+          schema:
+            $ref: '#/definitions/BranchInfo'
+
+  /repos/{user}/{repo}/branches/{branch}/checkout:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/branchName'
+      - $ref: '#/parameters/transactionRequired'
+    post:
+      tags:
+      - Collaboration
+      summary: Checkout this branch
+      description: Checkout this branch, making it the current branch in the repository
+      operationId: checkout
+      parameters: 
+        - name: force
+          in: query
+          type: boolean
+          required: false
+          default: false
+      responses:
+        200:
+          description: The branch was successfully checked out, refresh the view if needed
+          schema:
+            $ref: '#/definitions/BranchInfo'
+
+  /repos/{user}/{repo}/pulls:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+    get:
+      tags:
+      - Collaboration
+      summary: List pull requests issued to this repo
+      operationId: listPullRequests
+      parameters:
+        - name: open
+          type: boolean
+          in: query
+          default: true
+        - name: closed
+          type: boolean
+          in: query
+          default: false
+      responses:
+        200:
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/PullRequestInfo'
+    post:
+      tags:
+      - Collaboration
+      summary: Create a pull request
+      operationId: createPullRequest
+      parameters:
+        - name: PullRequestRequest
+          in: body
+          required: true
+          schema:
+            type: object
+            required: 
+            - title
+            properties:
+              title:
+                type: string
+              description:
+                type: string
+              targetBranch:
+                type: string
+              sourceRepositoryOwner:
+                type: string
+              sourceRepositryName:
+                type: string
+              sourceRepositoryBranch:
+                type: string
+      responses:
+        201:
+          description: Pull request created
+          schema:
+            $ref: '#/definitions/PullRequestInfo'
+              
+  /repos/{user}/{repo}/pulls/{pr}:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/pullRequestId'
+    get:
+      tags:
+      - Collaboration
+      summary: Get a specific pull request of this repo by id
+      operationId: getPullRequest
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/PullRequestInfo'
+    patch:
+      tags:
+      - Collaboration
+      summary: Change the title, description, open status, or target branch of the pull request
+      operationId: updatePullRequest
+      parameters:
+        - name: RequestRequestPatch
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              title:
+                type: string
+              description:
+                type: string
+              open:
+                type: boolean
+              targetBranch:
+                type: string
+      responses:
+        200:
+          description: PR correctly updated
+          schema:
+            $ref: '#/definitions/PullRequestInfo'
+
+  /repos/{user}/{repo}/pulls/{pr}/merge:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/pullRequestId'
+    get:
+      tags:
+      - Collaboration
+      summary: Check on the merged status of the pull request
+      operationId: isPullRequestMerged
+      responses:
+        200:
+          description: OK
+          schema:
+            type: boolean
+    put:
+      tags:
+      - Collaboration
+      summary: Merge the pull request
+      operationId: mergePullRequest
+      parameters:
+        - name: commit_title
+          in: header
+          type: string
+          description: Short, single line, title for the automatic commit message
+        - name: commit_message
+          in: header
+          type: string
+          description: Extra detail to append to automatic commit message, possibly encompassing multiple paragraphs 
+      responses:
+        200:
+          description: OK, merged
+          schema:
+            $ref: '#/definitions/ObjectHash' # the commit that was created when the request was merged
+
+
+  # Raw Repository Access API
+  /repos/{user}/{repo}/geogig/refs:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Raw Repository Access
+      summary: 'List all refs in the current repository'
+      description: 'List all refs in the current repository. Refs in the /transactions namespace are ommitted. Instead, if the geogig-transaction-id header parameter is provided, the refs under that transaction are returned.'
+      operationId: listRefs
+      responses:
+        200:
+          description: successful operation
+          schema:
+            $ref: '#/definitions/RefMap'
+  /repos/{user}/{repo}/geogig/config:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Raw Repository Access
+      summary: 'List all config settings in the current repository'
+      operationId: getAllConfig
+      responses:
+        200:
+          description: successful operation
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+  /repos/{user}/{repo}/geogig/objects/{objectId}:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - name: objectId
+        in: path
+        required: true
+        description: SHA1 hash in hex format of the object to retrieve
+        type: string
+    get:
+      tags:
+      - Raw Repository Access
+      summary: Download a single revision object from a repository
+      description: Download a single revision object from a repository
+      operationId: getObject
+      produces: 
+      - application/json
+      - application/x-jackson-smile
+      - text/plain
+      responses:
+        200:
+          schema:
+            $ref: '#/definitions/RevisionObject'
+          description: successful operation
+        404:
+          description: Object does not exist
+  /repos/{user}/{repo}/geogig/conflicts:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Raw Repository Access
+      summary: 'List merge conflicts'
+      description: ''
+      operationId: getConflicts
+      responses:
+        200:
+          description: successful operation
+          schema:
+            $ref: '#/definitions/RefMap'
+  /repos/{user}/{repo}/geogig/conflicts/count:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Raw Repository Access
+      summary: 'Get number of conflicts in the repository'
+      description: ''
+      operationId: countConflicts
+      responses:
+        200:
+          description: successful operation
+          schema:
+            type: integer
+            format: int64
+  /repos/{user}/{repo}/geogig/graph:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Raw Repository Access
+      summary: ''
+      description: ''
+      operationId: getCommitGraph
+      responses:
+        200:
+          description: successful operation
+          schema:
+            type: integer
+            format: int64
+  /repos/{user}/{repo}/geogig/index:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionOptional'
+    get:
+      tags:
+      - Raw Repository Access
+      summary: ''
+      description: ''
+      operationId: listIndexes
+      responses:
+        200:
+          description: successful operation
+          schema:
+            type: integer
+            format: int64
+  # Transaction Management API
+  /transactions:
+    get:
+      tags: 
+      - Transaction Management
+      summary: List all non expired transactions open an all the repositories visible to the authenticated user
+      operationId: listAllTransactions
+      responses:
+        200:
+          description: List of open transactions on this repository
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TransactionInfo'
+        401:
+          description: Unauthorized. Authentication required.
+  /transactions/{user}:
+    parameters: 
+      - $ref: '#/parameters/userName'
+    get:
+      tags: 
+      - Transaction Management
+      summary: List all non expired transactions on all the repositories visible to the given user
+      operationId: listUserTransactions
+      responses:
+        200:
+          description: List of open transactions on this repository
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TransactionInfo'
+        401:
+          description: 'Unauthorized. Authentication required.'
+        404:
+          description: 'User not found or not visible to the authenticated user'
+  /transactions/{user}/{repo}:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+    get:
+      tags: 
+      - Transaction Management
+      summary: List all non expired transactions on the given repository
+      operationId: listRepositoryTransactions
+      responses:
+        200:
+          description: List of open transactions on this repository
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TransactionInfo'
+        401:
+          description: 'Unauthorized. Authentication required.'
+        404:
+          description: 'Resource not found or not visible to authenticated user'
+
+    post:
+      tags: 
+      - Transaction Management
+      summary: Start a new transaction on the given repository
+      operationId: startTransaction
+      responses:
+        201:
+          description: Transaction created
+          schema:
+            $ref: '#/definitions/TransactionInfo'
+        401:
+          description: 'Unauthorized. Authenticated user has no permissions to create transactions on this repository.'
+        404:
+          description: 'Resource not found or not visible to the authenticated user.'
+  /transactions/{user}/{repo}/{transactionId}:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionId'
+    get:
+      tags: 
+      - Transaction Management
+      summary: Obtain the current status of the given transaction
+      operationId: getTransactionInfo
+      responses:
+        200:
+          description: The current status of the transaction
+          schema:
+            $ref: '#/definitions/TransactionInfo'
+        401:
+          description: 'Unauthorized. Authenticated user has no permissions to create transactions on this repository.'
+        404:
+          description: 'Resource not found or not visible to the authenticated user.'
+    delete:
+      tags: 
+      - Transaction Management
+      summary: 'Delete a transaction information that''s finished but not yet expired.'
+      description: 'Delete a transaction information. The transaction must be in a finished state (either committed or aborted) for the operation to succeed.'
+      operationId: deleteTransactionInfo
+      responses:
+        204:
+          description: The transaction information has been evicted. No content body is returned.
+        401:
+          description: 'Unauthorized. Authenticated user has no permissions to create transactions on this repository.'
+        404:
+          description: 'Resource not found or not visible to the authenticated user.'
+  /transactions/{user}/{repo}/{transactionId}/commit:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionId'
+    post:
+      tags: 
+      - Transaction Management
+      - Async
+      summary: Commit transaction. Async operation.
+      description: 'When committing a transaction'
+      operationId: commitTransaction
+      parameters: 
+        - name: messageTitle
+          type: string
+          in: header
+          required: false
+          description: 'A short (no more than 100 characters) title to summarize the reason this commit is being made'
+        - name: messageDescription
+          type: string
+          in: header
+          required: false
+          description: 'A possibly larger, even spanning multiple paragraphs, description of the reason this commit is applied.'
+      responses:
+        202:
+          description: Transaction commit request accepted and being processed.
+          schema:
+            $ref: '#/definitions/AsyncTaskInfo'
+        401:
+          description: 'Unauthorized. Authentication required.'
+        403:
+          description: 'Forbidden. Authenticated user has no permissions to commit this transaction.'
+        404:
+          description: 'Repository or transaction not found.'
+        409:
+          description: 'Conflict. The transaction cannot be committed since it results in merge conflicts. Solve the merge conflicts and try again.'
+
+  /transactions/{user}/{repo}/{transactionId}/abort:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/transactionId'
+    post:
+      tags: 
+      - Transaction Management
+      summary: Abort transaction. Returns immediately.
+      operationId: abortTransaction
+      responses:
+        200:
+          description: 'Transaction aborted.'
+          schema:
+            $ref: '#/definitions/TransactionInfo'
+        401:
+          description: 'Unauthorized. Authentication required.'
+        403:
+          description: 'Forbidden. Authenticated user has no permissions to abort this transaction.'
+        404:
+          description: 'Repository or transaction not found.'
+  # Feature service API
+  /layers:
+    get:
+      tags: 
+      - Feature Service
+      summary: return a summary of layers per user
+      operationId: getLayersSummaries
+      responses:
+        200:
+          description: 'An array of UserLayerSummary objects'
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/UserLayerSummary'
+  /layers/{user}:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/userName'
+    get:
+      tags: 
+      - Feature Service
+      summary: 'return a summary of this user''s layers'
+      operationId: getUserLayersSummaries
+      responses:
+        200:
+          description: 'An array of RepoLayerSummary objects'
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/RepoLayerSummary'
+
+  /layers/{user}/{repo}:
+    parameters: #common parameters to all methods
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+    get:
+      parameters: 
+      - $ref: '#/parameters/transactionOptional'
+      - $ref: '#/parameters/head'
+      tags:
+      - Feature Service 
+      summary: 'List layers in a repo'
+      description: 'List the available layers in the requested [transaction]/repository/[head]'
+      operationId: listLayers
+      responses:
+        200:
+          description: successful operation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/LayerInfo'
+        404:
+          description: Object does not exist
+    post:
+      tags: 
+      - Feature Service
+      summary: 'Create a new layer'
+      description: 'Creating and populating a new layer are two separate steps. First the layer schema must be created and then the features uploaded.'
+      operationId: createLayer
+      parameters:
+      - $ref: '#/parameters/transactionRequired'
+      - $ref: '#/parameters/featureType'
+      responses:
+        201:
+          description: 'Layer created'
+          schema:
+            $ref: '#/definitions/LayerInfo'
+        401:
+          description: 'Unauthorized. Authentication required.'
+        403:
+          description: 'Forbidden. Authenticated user has no permissions to create a layer on this repository.'
+        404:
+          description: 'Repository or transaction state not found'
+
+  /layers/{user}/{repo}/{layer}:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+    head:
+      tags:
+      - Feature Service
+      summary: 'Get a unique identifier for the current state of the layer.'
+      description: 'Get a unique identifier for the current state of the layer. Any change/edit to the layer will change this identifier. This operation can be used to verify whether the layer has changed since the client last accessed it.'
+      operationId: getLayerHash
+      parameters:
+      - $ref: '#/parameters/head'
+      - $ref: '#/parameters/transactionOptional'
+      produces:
+      - application/json
+      - text/plain
+      responses:
+        200:
+          description: 'Return the current hash identifier for the layer'
+          schema:
+            $ref: '#/definitions/ObjectHash'
+    get:
+      tags:
+      - Feature Service
+      summary: 'Get layer metadata at the specified transaction/head'
+      operationId: getLayerInfo
+      parameters:
+      - $ref: '#/parameters/head'
+      - $ref: '#/parameters/transactionOptional'
+      - name: If-None-Match
+        type: string
+        in: header
+        description: 'Conditional get, layer info if its revision tree hash does not match the provided hash'
+      responses:
+        200:
+          description: 'successful operation, layer metadata for the requested [transaction]/layer/[head]'
+          schema:
+            $ref: '#/definitions/LayerInfo'
+          headers:
+            ETag:
+              type: string
+              description: 'Hash of the current layer tree at the specified transaction/head. Can be used as the If-None-Match header for the next request to make a conditional request with the same parameters.'
+        304:
+          description: 'Not modified, returning no content. Layer tree hash matches the If-None-Match header parameter.'
+        404:
+          description: 'Layer not found'
+    delete:
+      tags: 
+      - Feature Service
+      summary: 'Delete a Layer from a repository at the current transaction''s branch'
+      operationId: deleteLayer
+      parameters:
+      - $ref: '#/parameters/transactionRequired'
+      responses:
+        204:
+          description: The server successfully deleted the Layer and is not returning any content
+        403:
+          description: The Authenticated user has no rights to delete the given Layer
+        404:
+          description: Layer not found
+  /layers/{user}/{repo}/{layer}/bounds:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+    get:
+      tags:
+      - Feature Service
+      summary: 'Get layer bounds at the specified transaction/head. If no head is specified, defaults to WORK_HEAD'
+      operationId: getBounds
+      parameters:
+      - $ref: '#/parameters/head'
+      - $ref: '#/parameters/transactionOptional'
+      responses:
+        200:
+          description: 'successful operation, layer bounds for the requested [transaction]/layer/[head]'
+          schema:
+            $ref: '#/definitions/BoundingBox'
+        404:
+          description: 'Layer not found'
+  /layers/{user}/{repo}/{layer}/size:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+    get:
+      tags:
+      - Feature Service
+      summary: 'Get layer''s number of features at the specified transaction/head. If no head is specified, defaults to WORK_HEAD'
+      operationId: getSize
+      parameters:
+      - $ref: '#/parameters/head'
+      - $ref: '#/parameters/transactionOptional'
+      responses:
+        200:
+          description: 'successful operation, layer size for the requested [transaction]/layer/[head]'
+          schema:
+            type: integer
+            format: int64
+        404:
+          description: 'Layer not found'
+  /layers/{user}/{repo}/{layer}/schema:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+    get:
+      tags:
+      - Feature Service
+      summary: 'Get Layer schema'
+      description: 'Get layer''s Feature Type at the specified transaction/head. If no head is specified, defaults to WORK_HEAD'
+      operationId: getSchema
+      parameters:
+      - $ref: '#/parameters/head'
+      - $ref: '#/parameters/transactionOptional'
+      responses:
+        200:
+          description: 'successful operation, layer size for the requested [transaction]/layer/[head]'
+          schema:
+            $ref: '#/definitions/RevisionFeatureType' 
+        404:
+          description: 'Layer not found'
+    put:
+      tags:
+      - Feature Service
+      summary: 'Change Layer schema. Must be called inside a transaction.'
+      description: 'Modify the layer''s number of features at the specified transaction/head. If no head is specified, defaults to WORK_HEAD'
+      operationId: updateSchema
+      consumes:
+      - application/json
+      parameters:
+      - $ref: '#/parameters/head'
+      - $ref: '#/parameters/transactionRequired'
+      - $ref: '#/parameters/featureType'
+      responses:
+        200:
+          description: 'successful operation, the updated schema. May differ slightly from the provided one to match layer name'
+          schema:
+            $ref: '#/definitions/RevisionFeatureType' 
+        404:
+          description: 'Layer not found'
+  /layers/{user}/{repo}/{layer}/features:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+    get:
+      tags:
+      - Feature Service
+      summary: Get Features from a geogig Layer
+      description: 'Obtain a stream of features from a geogig layer at the specified transaction/head'
+      operationId: getFeatures
+      parameters:
+      - $ref: '#/parameters/bbox'
+      - $ref: '#/parameters/attributes'
+      - $ref: '#/parameters/head'
+      - $ref: '#/parameters/transactionOptional'
+      - $ref: '#/parameters/page'
+      - $ref: '#/parameters/pageSize'
+      - name: If-None-Match
+        type: string
+        in: header
+        description: 'Conditional get, return features if the layer tree does not match the provided hash'
+      produces:
+      - application/vnd.geo+json  #GeoJSON
+      - application/vnd.geo+smile #binary encoded geojson
+      - application/vnd.geogig.features+json #simplified geojson
+      - application/vnd.geogig.features+smile #binary simplified geojson
+      responses:
+        200:
+          description: 'successful operation, stream of features in the requested [transaction]/layer/[head]'
+          schema:
+            $ref: '#/definitions/FeatureCollection'
+          headers:
+            ETag:
+              type: string
+              description: 'Hash of the current layer tree at the specified transaction/head. Can be used as the If-None-Match header for the next request to make a conditional request with the same parameters.'
+        304:
+          description: 'Not modified, returning no content. Layer tree hash matches the If-None-Match header parameter.'
+        404:
+          description: 'Layer not found'
+    post:
+      tags:
+      - Feature Service
+      summary: Iserts features to this collection in the WORK_HEAD. Parameter features can be either a Feature or a FeatureCollection.
+      description: The features are added to the WORK_HEAD tree. This operation works against the currently checked out branch for the indicated transaction, and does not perform a geogig commit on its own. The geogig commit is created either manually or once the geogig transaction is committed.
+      operationId: addFeatures
+      consumes:
+      - application/vnd.geo+json
+      - application/vnd.geo+smile
+      parameters:
+      - name: features
+        in: body
+        schema:
+          $ref: '#/definitions/Feature'
+      - $ref: '#/parameters/transactionRequired'
+      responses:
+        204:
+          description: 'successful operation'
+        404:
+          description: 'Layer not found'
+    delete:
+      tags:
+      - Feature Service
+      summary: Deletes all features in the layer
+      operationId: truncate
+      parameters:
+      - $ref: '#/parameters/transactionRequired'
+      responses:
+        204:
+          description: 'successful operation'
+        404:
+          description: 'Layer not found'
+
+  /layers/{user}/{repo}/{layer}/rpc/query:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+    post:
+      tags:
+      - Feature Service
+      summary: Query and return features of this layer tha match the specified FeatureQuery 
+      description: The features are looked up WORK_HEAD tree unless the head parameter has been provided. 
+      operationId: queryFeatures
+      parameters:
+      - name: query
+        in: body
+        required: false
+        schema:
+          $ref: '#/definitions/FeatureQuery'
+      - $ref: '#/parameters/transactionOptional'
+      produces:
+      - application/vnd.geo+json  #GeoJSON
+      - application/vnd.geo+smile #binary encoded geojson
+      - application/vnd.geogig.features+json #simplified geojson
+      - application/vnd.geogig.features+smile #binary simplified geojson
+      responses:
+        200:
+          description: 'successful operation, stream of features in the requested [transaction]/layer/[head]'
+          schema:
+            $ref: '#/definitions/FeatureCollection'
+          headers:
+            ETag:
+              type: string
+              description: 'Hash of the current layer tree at the specified transaction/head. Can be used as the If-None-Match header for the next request to make a conditional request with the same parameters.'
+        404:
+          description: 'Layer not found'
+          
+  /layers/{user}/{repo}/{layer}/rpc/update:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+    post:
+      tags:
+      - Feature Service
+      summary: Modifies features matching the given query with the given values, in the WORK_HEAD of the currently checked out branch for the indicated transaction
+      description: The features are looked up and modifies in current  WORK_HEAD tree. This operation works against the currently checked out branch for the indicated transaction, and does not perform a geogig commit on its own. The geogig commit is created either manually or once the geogig transaction is committed.
+      operationId: modifyFeatures
+      parameters:
+      - name: query
+        in: body
+        schema:
+          $ref: '#/definitions/UpdateFeaturesRequest'
+      - $ref: '#/parameters/transactionRequired'
+      responses:
+        204:
+          description: 'successful operation'
+        404:
+          description: 'Layer not found'
+  
+  /layers/{user}/{repo}/{layer}/rpc/delete:
+    parameters: 
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+    post:
+      tags:
+      - Feature Service
+      summary: Delete features matching the given query
+      operationId: deleteFeatures
+      parameters:
+      - name: filter
+        in: body
+        schema:
+          $ref: '#/definitions/FeatureFilter'
+      - $ref: '#/parameters/transactionRequired'
+      responses:
+        204:
+          description: 'successful operation'
+        404:
+          description: 'Layer not found'
+          
+  /layers/{user}/{repo}/{layer}/features/{featureId}:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/userName'
+      - $ref: '#/parameters/repoName'
+      - $ref: '#/parameters/layerName'
+      - name: featureId
+        in: path
+        required: true
+        description: Feature identifier
+        type: string
+    get:
+      tags:
+      - Feature Service
+      summary: 'Get a single feature from a layer given its feature id, at the specified transaction/head'
+      operationId: getFeature
+      parameters:
+      - $ref: '#/parameters/head'
+      - $ref: '#/parameters/transactionOptional'
+      - name: If-None-Match
+        type: string
+        in: header
+        description: 'Conditional get, return feature its revision feature hash does not match the provided hash'
+      produces:
+      - application/vnd.geo+json
+      - application/vnd.geo+smile
+      responses:
+        200:
+          description: 'successful operation, single features requested at [transaction]/layer/[head]'
+          schema:
+            $ref: '#/definitions/Feature'
+          headers:
+            ETag:
+              type: string
+              description: 'Hash of the current feature at the specified transaction/head. Can be used as the If-None-Match header for the next request to make a conditional request with the same parameters.'
+        304:
+          description: 'Not modified, returning no content. Feature hash matches the If-None-Match header parameter.'
+        404:
+          description: 'Feature not found'
+    delete:
+      tags: 
+      - Feature Service
+      summary: 'Delete a single feature at the current transaction''s branch'
+      operationId: deleteFeature
+      parameters:
+      - $ref: '#/parameters/transactionRequired'
+      responses:
+        204:
+          description: The server successfully deleted the Feature and is not returning any content
+        403:
+          description: The Authenticated user has no rights to change the given Layer
+        404:
+          description: Feature not found
+    put:
+      tags: 
+      - Feature Service
+      summary: 'Replace a single feature at the current transaction''s branch'
+      operationId: modifyFeature
+      consumes:
+      - application/vnd.geo+json
+      parameters:
+      - $ref: '#/parameters/transactionRequired'
+      responses:
+        204:
+          description: The server successfully modified the Feature and is not returning any content
+        403:
+          description: The Authenticated user has no rights to change the given Layer
+        404:
+          description: Feature not found
+  #Asynchronous tasks API
+  /tasks:
+    get:
+      tags:
+      - Async
+      summary: List summary information for current asynchronous tasks
+      operationId: listTasks
+      responses:
+        200:
+          description: 'successful operation, stream of available tasks'
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/AsyncTaskInfo'
+        403:
+          description: 'Authentication required'
+  /tasks/{taskId}:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/taskId'
+    get:
+      tags:
+      - Async
+      parameters: 
+        - name: prune
+          in: query
+          description: 'If provided and true, the task information is pruned (deleted) if the operation is complete (either successfully or not)'
+          type: boolean
+          required: false
+      summary: Access status info for a given task
+      operationId: getTaskInfo
+      responses:
+        200:
+          description: 'successful operation, status info for the specified task'
+          schema:
+            $ref: '#/definitions/AsyncTaskInfo'
+        403:
+          description: 'Authentication required'
+        404:
+          description: 'Task not found'
+    delete:
+      tags:
+      - Async
+      summary: 'Prune a task if finished'
+      description: 'If the task is finished, then deletes its information, fail otherwise'
+      operationId: pruneTask
+      responses:
+        204:
+          description: 'Task info deleted successfully, no content created'
+        400:
+          description: 'Bad request, required task is not finished'
+        403:
+          description: 'Authentication required'
+        404:
+          description: 'Task not found'
+  /tasks/{taskId}/abort:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/taskId'
+    post:
+      tags:
+      - Async
+      summary: 'Abort a running or scheduled task'
+      description: 'Abort a running or scheduled task. If the task is already finished, the operation has no effect and its current state is returned. If the tasks is not finished, the returned task info status might be either ABORTING or ABORTED'
+      operationId: abortTask
+      responses:
+        200:
+          description: 'Task info after abort is called on it.'
+          schema:
+            $ref: '#/definitions/AsyncTaskInfo'
+        403:
+          description: 'Authentication required'
+        404:
+          description: 'Task not found'
+          
+  /tasks/{taskId}/progress:
+    parameters: #parameters common to all methods
+      - $ref: '#/parameters/taskId'
+    get:
+      tags:
+      - Async
+      summary: Get task progress info
+      operationId: getTaskProgress
+      responses:
+        200:
+          description: 'successful operation, progress info for the specified task'
+          schema:
+            $ref: '#/definitions/ProgressInfo'
+        403:
+          description: 'Authentication required'
+        404:
+          description: 'Task not found'
+
+definitions:
+  Error:
+    type: object
+    description: Schema for error response body
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    required:
+      - code
+      - message
+  
+  ProgressInfo:
+    type: object
+    description: 'Information about the progress of an asynchronous task'
+    properties:
+      task_description:
+        type: string
+        default: 'Waiting...'
+      progress_description:
+        type: string
+        default: ''
+      
+  AsyncTaskInfo:
+    type: object
+    properties:
+      id:
+        type: string
+        format: uuid
+      status:
+        type: string
+        enum: 
+        - SCHEDULED
+        - RUNNING
+        - COMPLETE
+        - FAILED
+        - ABORTING
+        - ABORTED
+      description:
+        type: string
+      progress:
+        $ref: '#/definitions/ProgressInfo'
+      last_updated:
+        type: string
+        format: date-time
+        description: 'When was the last time that progress on this task was reported'
+      scheduled_at:
+        type: string
+        format: date-time
+        description: 'At what time was this task scheduled for execution'
+      started_at:
+        type: string
+        format: date-time
+        description: 'At what time was this task execution started'
+      finished_at:
+        type: string
+        format: date-time
+        description: 'At what time was this task finished. Null if not yet finished.'
+      repository:
+        $ref: '#/definitions/RepositoryInfo'
+      started_by:
+        $ref: '#/definitions/UserInfo'
+      aborted_by:
+        $ref: '#/definitions/UserInfo'
+      transaction:
+        $ref: '#/definitions/TransactionInfo'
+      result:
+        $ref: '#/definitions/TaskResult'
+      error:
+        $ref: '#/definitions/Error'
+  
+  TaskResult:
+    type: object
+    description: A marker interface to domain objects that can be a result of an AsyncTask, given Swagger 2 does not support oneOf, which we would rather use on AsyncTaskInfo.result
+    discriminator:
+      taskResultType
+    properties:
+      taskResultType:
+        type: string
+    
+  VersionInfo:
+    type: object
+    properties:
+      version:
+        type: string
+      branch:
+        type: string
+      buildTime:
+        type: string
+      commitId:
+        type: string
+      commitTime:
+        type: string
+      commitMessage:
+        type: string
+
+
+  FeatureFilter:
+    type: object
+    properties:
+      featureIds:
+        type: array
+        items:
+          type: string
+      bbox:
+        $ref: '#/definitions/BoundingBox'
+      cqlFilter:
+        type: string
+
+
+  FeatureQuery:
+    type: object
+    properties:
+      head:
+        type: string
+        default: WORK_HEAD
+        description: tree-ish resolving to the root tree to query. Defaults to WORK_HEAD
+      attributes:
+        type: array
+        items:
+          type: string
+      filter:
+        $ref: '#/definitions/FeatureFilter'
+      resultType:
+        enum: 
+        - FEATURES
+        - BOUNDS
+        - COUNT
+        - FIDS
+      outputCrs:
+        $ref: '#/definitions/SRS'
+      offset:
+        type: integer
+        format: int32
+        default: null
+      limit:
+        type: integer
+        format: int32
+        default: null
+      precision:
+        type: integer
+        format: int32
+        default: 0
+        multipleOf: 10
+        minimum: 0
+        maximum: 1000000000
+        description: 'Multiplying factor used to obtain a precise ordinate. For example, in order to round ordinates to 3 significant digits use a value of 1000. A value absent or 0 (zero) means to not apply any rounding on ordinates. The maximum allowed value is 1,000,000,000 for a precision of 9 decimal places, which is the tolerance used by GeoGig to compare coordinate equality'
+      simplificationDistance:
+        type: number
+        format: double
+        minimum: 0.0
+        exclusiveMinimum: true
+        description: 'Perform non topology preserving geometry generalization with the given tolerance (may return self crossing polygons as result of the generalization)'
+      #TODO: add ScreenMap support
+      
+  UpdateFeaturesRequest:
+    type: object
+    description: 'A request to update the featues matching the filter given by the query using the values given in the prototype feature'
+    properties:
+      prototype:
+        $ref: '#/definitions/Feature'
+      filter:
+        $ref: '#/definitions/FeatureFilter'
+
+  LayerInfo:
+    type: object
+    description: 'Single Layer metadata at a given head/branch'
+    properties:
+      head:
+        type: string
+        description: 'name of the branch or other head ref-spec (commit id, tag name, etc) where the layer info exists as advertised'
+      name:
+        type: string
+      title:
+        type: string
+      abstract:
+        type: string
+      size:
+        type: integer
+        format: int64
+        default: 0
+        minimum: 0
+      bounds:
+        $ref: '#/definitions/BoundingBox'
+      type:
+        $ref: '#/definitions/RevisionFeatureType'
+
+  LayerSummary:
+    type: object
+    description: 'Single Layer metadata'
+    properties:
+      name:
+        type: string
+      title:
+        type: string
+      abstract:
+        type: string
+  
+  RepoLayerSummary:
+    type: object
+    description: 'Summary of layers in a repository'
+    properties:
+      repository:
+        type: string
+      layers:
+        type: array
+        items:
+          $ref: '#/definitions/LayerSummary'
+
+  UserLayerSummary:
+    type: object
+    description: 'Single Layer metadata at a given head/branch'
+    properties:
+      userName:
+        type: string
+      repositories:
+        type: array
+        items:
+          $ref: '#/definitions/RepoLayerSummary'
+
+  IdentifiedObject:
+    type: object
+    description: 'Identified objects, such as stores, users, and repositories, have a system assigned unique identifier that''s used internally to link them together, and a user assigned identity name that can be changed (i.e. an object can be renamed) as long as it remains unique across its domain of usage.'
+    #discriminator: objectType
+    #required: 
+    #- objectType
+    properties:
+    #  objectType:
+    #    type: string
+    #    readOnly: true
+      id:
+        type: string
+        format: uuid
+        description: 'A unique and immutable identifier for the object, generated by the system, and unique across the whole system'
+      identity:
+        type: string
+        description: 'A user given name for the object, unique across its domain of usage, and modifiable as long as it remains unique. I.e. Store and User names are globally unique, Repository names are unique in the scope of their owner.'
+    example: 
+            id: '00039b47-1d3f-46fc-ac82-6992edaffdde'
+            identity: 'Default'
+
+  StoreInfo:
+    allOf: 
+    -  $ref: '#/definitions/IdentifiedObject'
+    - type: object
+      description: 'A repository store is a container for several repositories. It can be a PostgreSQL database holding several repositories, or a filesystem directory containing several file:// repositories, for example. Repository names are unique under a single repository store'
+      required:
+      - enabled
+      properties:
+        description: 
+          type: string
+        enabled:
+          type: boolean
+          default: true
+        connectionInfo:
+          $ref: '#/definitions/StoreConnectionInfo'
+      example:
+              identity: postgres
+              description: Default postgresql
+              enabled: true
+              connectionInfo:
+                type: PostgresStoreInfo
+                server: localhost
+                port: 5432
+                database: geogig_web
+                schema: public
+                user: postgres
+                password: geo123
+
+  StoreConnectionInfo:
+    type: object
+    discriminator: type
+    required: 
+    - type
+    properties:
+      type:
+        type: string
+
+  FileStoreInfo:
+    allOf:
+    - $ref: '#/definitions/StoreConnectionInfo'
+    - description: 'Configuration options of a directory of Rocksdb based repositories'
+    - type: object
+    - properties:
+        directory:
+          type: string
+          description: 'File system directory on the server where the repositories are stored'
+  
+  PostgresStoreInfo:
+    allOf:
+    - $ref: '#/definitions/StoreConnectionInfo'
+    - description: 'Configuration options of a PostgreSQL database containing several repositories'
+    - type: object
+    - properties:
+        server:
+          type: string
+          default: localhost
+        port:
+          type: integer
+          format: int32
+          default: 5432
+        database:
+          type: string
+          default: geogig
+        schema:
+          type: string
+          default: public
+        user:
+          type: string
+          default: postgres
+        password:
+          type: string
+          format: password
+
+  UserType:
+    description: ''
+    type: string
+    enum:
+    - INDIVIDUAL
+    - ORGANIZATION
+
+  UserInfo:
+    allOf: 
+    -  $ref: '#/definitions/IdentifiedObject'
+    - type: object
+      required: 
+      - type
+      - publicProfile
+      - siteAdmin
+      properties:
+        type:
+          $ref: '#/definitions/UserType'
+        siteAdmin:
+          type: boolean
+          default: false
+          description: 'True if the user is a site administrator'
+        publicProfile:
+          type: object
+          properties:
+            avatar_url:
+              type: string
+              format: uri
+            gravatar_id:
+              type: string
+            company:
+              type: string
+            public_repos:
+              type: integer
+              format: int32
+            followers:
+              type: integer
+              format: int32
+              default: 0
+            following:
+              type: integer
+              format: int32
+              default: 0
+        privateProfile:
+          type: object
+          properties:
+            fullName:
+              type: string
+              description: 'User''s full name, as used for commit info'
+            emailAddress:
+              type: string
+              format: email
+              description: 'Default user email address, as used in commit info'
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+            location:
+              type: string
+              description: 'Human readable location name.'
+            defaultStore:
+              $ref: '#/definitions/IdentifiedObject'
+            additionalStores:
+              type: array
+              items:
+                $ref: '#/definitions/IdentifiedObject'
+      example: {
+                "id": "12345",
+                "login": "groldan",
+                "type": "INDIVIDUAL",
+                "siteAdmin": false,
+                "publicProfile": {
+                  "avatar_url": "http://geogig.example.io/avatars/groldan",
+                  "gravatar_id": "",
+                  "company": "Boundless Spatial",
+                  "public_repos": 14,
+                  "followers": 89,
+                  "following": 22
+                },
+                "privateProfile": {
+                  "fullName": "Gabriel Roldan",
+                  "emailAddress": "admin@geogig.example.io",
+                  "created_at": "2017-12-15T20:44:38.930Z",
+                  "updated_at": "2017-12-15T20:44:38.930Z",
+                  "location": "St. Louis, MO"
+                }
+              }
+
+
+  RepositoryInfo:
+    allOf: 
+    -  $ref: '#/definitions/TaskResult'
+    -  $ref: '#/definitions/IdentifiedObject'
+    - type: object
+      description: ''
+      properties:
+        store:
+          $ref: '#/definitions/IdentifiedObject'
+        owner:
+          $ref: '#/definitions/IdentifiedObject'
+        forked_from:
+          type: object
+          title: OriginInfo
+          description: A snapshot summary of the state of the origin repo when it was forked to this one
+          properties:
+            owner:
+              type: string
+            name:
+              type: string
+            refs:
+              type: array
+              items:
+                $ref: '#/definitions/Ref'
+      example: 
+        id: '22120117-9a6e-4f42-abcd-edb4caec17df'
+        identity: 'NaturalEarth'
+        owner:
+         id: 'f0c23dc0-b452-4989-9a40-9ed0397790b9'
+         identity: 'groldan'
+        store:
+         id: '4337cf14-4577-4692-99db-81fbc1c88a78'
+         identity: 'default'
+             
+
+  Coordinate:
+    description: 'simple cartesian coordinate'
+    type: array
+    items:
+      type: number
+      format: double
+    minItems: 2
+    
+  BoundingBox:
+    description: 'simple cartesian bounding box'
+    type: array
+    items:
+     type: number
+     format: double
+     minItems: 4
+     maxItems: 4
+     example: [-180, -90, 180, 90]
+
+  ObjectType:
+    description: 'Enum that discriminates the different possible types of revision objects'
+    type: string
+    enum:
+    - RevisionCommit
+    - RevisionTree
+    - RevisionFeature
+    - RevisionTag
+    - RevisionFeatureType
+    
+  ValueType:
+    description: 'Enum for the possible types of attribute values in a Feature'
+    type: string
+    enum: 
+    - NULL
+    - BOOLEAN
+    - BYTE
+    - SHORT
+    - INTEGER
+    - LONG
+    - FLOAT
+    - DOUBLE
+    - STRING
+    - BOOLEAN_ARRAY
+    - BYTE_ARRAY
+    - SHORT_ARRAY
+    - INTEGER_ARRAY
+    - LONG_ARRAY
+    - FLOAT_ARRAY
+    - DOUBLE_ARRAY
+    - STRING_ARRAY
+    - POINT
+    - LINESTRING
+    - POLYGON
+    - MULTIPOINT
+    - MULTILINESTRING
+    - MULTIPOLYGON
+    - GEOMETRYCOLLECTION
+    - GEOMETRY
+    - UUID
+    - BIG_INTEGER
+    - BIG_DECIMAL
+    - DATETIME
+    - DATE
+    - TIME
+    - TIMESTAMP
+    - MAP
+    - CHAR
+    - CHAR_ARRAY
+    - ENVELOPE_2D
+   
+  Value:
+    description: ''
+    type: object
+    required:
+    - valueType
+    properties:
+      valueType:
+        $ref: '#/definitions/ValueType'
+      value:
+        type: object
+
+  ObjectHash:
+    type: string
+    format: hex
+    minLength: 40
+    maxLength: 40
+    
+  RevisionObject:
+    description: 'Abstract base class for the closed set of revision objects. A revision object is one of the five possible kinds of objects that are stored in a geogig repository and whose relationships constitutes the repository''s revision graph'
+    type: object
+    discriminator: objectType
+    required:
+    - id
+    - objectType
+    properties:
+      id:
+        $ref: '#/definitions/ObjectHash'
+      objectType:
+        $ref: '#/definitions/ObjectType'
+  Person:
+    type: object
+    description: 'Identity and timestamp for the authorship of revision content, as used in Commit and Tag objects'
+    required: 
+    - timestamp
+    - timezoneOffset
+    properties:
+      name:
+        type: string
+        description: 'Name of the individual accountable to this signature'
+      email:
+        type: string
+        format: email
+        description: 'email address of the individual accountable to this signature'
+      timestamp:
+        type: integer
+        format: int64
+        description: 'timestamp at which this person created the revision object it''s been accountable for, as milliseconds since January 1, 1970, 00:00:00 GMT'
+      timezoneOffset:
+        type: integer
+        format: int32
+        description: 'time zone offset from UTC, in milliseconds'
+  RevisionCommit:
+    allOf: 
+    - $ref: '#/definitions/RevisionObject'
+    - description: 'A revision object that represents a full snapshot of the datasets at one or more branches and the metadata associated to it. A commit is an entry point to the revision graph, and the relationshipt with its parents conform a single lineage of data history, while the branches point to all the most current commits'
+    - type: object
+      required:
+      - parentIds
+      - treeId
+      - author
+      - committer
+      - message
+      properties:
+        parentIds:
+          type: array
+          items:
+            $ref: '#/definitions/ObjectHash'
+        treeId:
+          $ref: '#/definitions/ObjectHash'
+        message:
+          type: string
+        author:
+          $ref: '#/definitions/Person'
+        committer:
+          $ref: '#/definitions/Person'
+    xml:
+      name: Commit
+  
+  TreeNode:
+    properties:
+      name:
+        type: string
+      objectId:
+        $ref: '#/definitions/ObjectHash'
+      type:
+        $ref: '#/definitions/ObjectType'
+      metadataId:
+        $ref: '#/definitions/ObjectHash'
+      bounds:
+        $ref: '#/definitions/BoundingBox'
+      extraData:
+        type: object
+        additionalProperties:
+          type: object
+    required: 
+    - name
+    - objectId
+    - type
+  
+  TreeBucket:
+    properties:
+      index:
+        type: integer
+        format: int32
+      objectId:
+        type: string
+      bounds:
+        $ref: '#/definitions/BoundingBox'
+    
+  RevisionTree:
+    allOf: 
+    - $ref: '#/definitions/RevisionObject'
+    - description: 'A recursive data structure ([Merkle Tree](https://en.wikipedia.org/wiki/Merkle_tree)) that contains pointers either to other Tree and Feature nodes, or to other Tree objects it was split into. Two trees that point to the exact same data are guaranteed to have the same id as the result of applying a hash function to it.'
+    - type: object
+      required:
+      - numTrees
+      - size
+      properties:
+        numTrees:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int64
+        trees:
+          type: array
+          items:
+            $ref: '#/definitions/TreeNode'
+        features:
+          type: array
+          items:
+            $ref: '#/definitions/TreeNode'
+        buckets:
+          type: array
+          items:
+            $ref: '#/definitions/TreeBucket'
+    xml:
+      name: Commit    
+  
+  RevisionFeature:
+    allOf: 
+    - $ref: '#/definitions/RevisionObject'
+    - description: ''
+    - type: object
+      required:
+      - values
+      properties:
+        values:
+          type: array
+          items:
+            $ref: '#/definitions/Value'
+    xml:
+      name: Feature
+
+  RevisionTag:
+    allOf: 
+    - $ref: '#/definitions/RevisionObject'
+    - description: ''
+    - type: object
+      required:
+      - name
+      - message
+      - commitId
+      - tagger
+      properties:
+        name:
+          type: string
+        message:
+          type: string
+        commitId:
+          $ref: '#/definitions/ObjectHash'
+        tagger:
+          $ref: '#/definitions/Person'
+    xml:
+      name: Tag
+
+  SRS:
+    type: object
+    properties:
+      wkt:
+        type: string
+      authorityCode:
+        type: string
+
+  SimplePropertyDescriptor:
+    type: object
+    required: 
+      - name
+      - binding
+    properties:
+      name:
+        type: string
+      binding:
+        $ref: '#/definitions/ValueType'
+      nillable:
+        type: boolean
+        description: 'Flag indicating if <null> is an allowable value for the property'
+      crs:
+        $ref: '#/definitions/SRS'
+  
+  RevisionFeatureType:
+    allOf: 
+    - $ref: '#/definitions/RevisionObject'
+    - description: ''
+    - type: object
+      required:
+      - name
+      - properties
+      properties:
+        name:
+          type: string
+        #namespace:
+        #  type: string
+        #  format: uri
+        properties:
+          type: array
+          items:
+            $ref: '#/definitions/SimplePropertyDescriptor'
+        defaultGeometry:
+          type: string
+          description: 'Name of the default geometric attribute'
+    xml:
+      name: FeatureType
+
+  TransactionStatus:
+    type: string
+    enum: 
+    - OPEN
+    - COMMITTED
+    - CONFLICTS_ON_COMMIT
+    - ABORTED
+  
+  TransactionInfo:
+    type: object
+    description: ''
+    properties:
+      id:
+        type: string
+        format: uuid
+      status:
+        $ref: '#/definitions/TransactionStatus'
+      created-at:
+        type: string
+        format: date-time
+      created-by:
+        $ref: '#/definitions/UserInfo'
+      terminated-at:
+        type: string
+        format: date-time
+      terminated-by:
+        $ref: '#/definitions/UserInfo'
+      repository:
+        $ref: '#/definitions/RepositoryInfo'
+        
+  Ref:
+    type: object
+    required: 
+    - name
+    - sha
+    - sym
+    properties:
+      name:
+        type: string
+      sha:
+        type: string
+      sym:
+        type: boolean
+      target:
+        type: string
+    example: 
+            name: refs/remotes/origin/HEAD
+            sha: e50dfad74241bf885b6b77ae88fb2e5ec90fcc8a
+            sym: true
+            target: refs/remotes/origin/master
+  RefMap:
+    type: object
+    additionalProperties:
+      $ref: '#/definitions/Ref'
+
+  Feature:
+    type: object
+    description: type placeholder for a single feature. Server implementation dependent.
+    discriminator: type
+    properties:
+      type:
+        type: string
+        readOnly: true
+      featureType:
+        readOnly: true
+        $ref: '#/definitions/RevisionFeatureType'
+    example:
+      type: Feature
+      id: 6d39c44113
+      properties:
+        name: Palmerston N. Int`l
+      geometry:
+        name: location
+        type: Point
+        coordinates:
+          - 175.62128328
+          - -40.32331789
+    
+  FeatureCollection:
+    allOf: 
+    - $ref: '#/definitions/Feature'
+    - description: type placeholder for feature collection as a return type. Server implementation dependent.
+    - type: object
+    example: 
+      type: FeatureCollection
+      featureType:
+        id: null
+        defaultGeometry: location
+        name: Poi
+        objectType: RevisionFeatureType
+        properties:
+          - crs:
+             wkt: null
+             authorityCode: 'EPSG:4326'
+            name: location
+            binding: POINT
+            nillable: true
+          - binding: STRING
+            nillable: true
+            name: name
+            crs: null
+      crs:
+        type: name
+        properties:
+          name: 'EPSG:4326'
+      features:
+        - type: Feature
+          id: 6d39c44113
+          properties:
+            name: Palmerston N. Int`l
+          geometry:
+            name: location
+            type: Point
+            coordinates:
+              - 175.62128328
+              - -40.32331789
+        - type: Feature
+          id: 6d39c44114
+          properties:
+            name: Mbuji Mayi
+          geometry:
+            type: Point
+            name: location
+            coordinates:
+              - 23.5721092
+              - -6.12484541
+             
+    
+  PullRequestInfo:
+    type: object
+    properties:
+      id:
+        type: integer
+        format: int32
+      sourceBranch:
+        type: string
+      targetBranch:
+        type: string
+      title:
+        type: string
+      description:
+        type: string
+      status:
+        enum:
+          - OPEN
+          - CLOSED
+          - MERGED
+      mergeable:
+        enum:
+          - MERGEABLE
+          - UNMERGEABLE
+          - UNKNOWN
+      merge_commit:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
+      closed_at:
+        type: string
+        format: date-time
+      createdBy:
+        $ref: '#/definitions/UserInfo'
+      closedBy:
+        $ref: '#/definitions/UserInfo'
+      sourceRepo:
+        $ref: '#/definitions/RepositoryInfo'
+      targetRepo:
+        $ref: '#/definitions/RepositoryInfo'
+  
+  BranchInfo:
+    type: object
+    properties:
+      name:
+        type: string
+      description:
+        type: string
+      commit:
+        $ref: '#/definitions/RevisionCommit'
+        
+# Added by API Auto Mocking Plugin
+host: virtserver.swaggerhub.com
+basePath: /groldan/geogig-web/1.0.0
