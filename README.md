@@ -1,5 +1,10 @@
 # GeoGig OpenAPI interface
 
+Geogig OpenAPI is an interface to Geogig data source to allow versioned editing of geospatial data similar to git.
+
+This API is NGA funded as part of the GEOINT Services program
+
+
 GeoGig's WEB API Swagger definition and implementations for Java Server, Java, JavaScript, and Python clients.
 
 ##Getting started
